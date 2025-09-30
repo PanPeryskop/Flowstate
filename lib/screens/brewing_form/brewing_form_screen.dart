@@ -59,7 +59,6 @@ class _BrewingFormScreenState extends State<BrewingFormScreen> {
     if (brewing != null && brewing.steps.isNotEmpty) {
       _pourControllers = brewing.steps.map((step) => TextEditingController(text: step.waterAmount.toString())).toList();
     } else {
-
       _pourControllers = [
         TextEditingController(text: '60'),
         TextEditingController(text: '60'),
@@ -95,6 +94,47 @@ class _BrewingFormScreenState extends State<BrewingFormScreen> {
       _pourControllers[index].dispose();
       _pourControllers.removeAt(index);
     });
+  }
+
+  Future<void> _deleteBrewing() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Usuń parzenie'),
+        content: const Text('Czy na pewno chcesz usunąć to parzenie?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('ANULUJ'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('USUŃ'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && widget.brewing != null) {
+      setState(() => _isLoading = true);
+      try {
+        await context.read<DatabaseService>().deleteBrewing(widget.brewing!.id, widget.coffee.id);
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Parzenie zostało usunięte')),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Błąd podczas usuwania: $e')),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _saveBrewing() async {
@@ -161,6 +201,15 @@ class _BrewingFormScreenState extends State<BrewingFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.brewing == null ? 'Add Brewing' : 'Edit Brewing'),
+        actions: [
+          if (widget.brewing != null)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Usuń parzenie',
+              color: Colors.red.shade300,
+              onPressed: _deleteBrewing,
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
