@@ -1,16 +1,18 @@
-# flowstate
+<div align="center">
 
-A new Flutter project.
+<img src="assets/images/flowstate_logo.png" alt="Flowstate logo" width="160"/>
 
-## Getting Started
+<h1>Flowstate</h1>
+<p>Dial in your perfect pour-over</p>
 
-This project is a starting point for a Flutter application.
+</div>
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Features
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- **Coffee Profiles** - Add and edit coffee profiles with roaster information, origin, flavor profile and roast date
+- **Brewing Sessions** - Record brewing data including coffee dose, grind setting, water temperature, time and rating
+- **Tasting Notes** - Save detailed tasting notes with quick preview in brewing history
+- **Sorting & Filtering** - Organize brewing history by date from the coffee detail screen
+- **Analytics** - View brewing statistics to improve consistency and technique
