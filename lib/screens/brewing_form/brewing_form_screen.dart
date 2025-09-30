@@ -100,19 +100,19 @@ class _BrewingFormScreenState extends State<BrewingFormScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Usuń parzenie'),
-        content: const Text('Czy na pewno chcesz usunąć to parzenie?'),
+        title: const Text('Delete Brewing'),
+        content: const Text('Are you sure you want to delete this brewing?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('ANULUJ'),
+            child: const Text('CANCEL'),
           ),
           TextButton(
             style: TextButton.styleFrom(
               foregroundColor: Colors.red,
             ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('USUŃ'),
+            child: const Text('DELETE'),
           ),
         ],
       ),
@@ -125,12 +125,12 @@ class _BrewingFormScreenState extends State<BrewingFormScreen> {
         if (mounted) {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Parzenie zostało usunięte')),
+            const SnackBar(content: Text('Brewing has been deleted')),
           );
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Błąd podczas usuwania: $e')),
+          SnackBar(content: Text('Error deleting brewing: $e')),
         );
         setState(() => _isLoading = false);
       }
@@ -205,7 +205,7 @@ class _BrewingFormScreenState extends State<BrewingFormScreen> {
           if (widget.brewing != null)
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              tooltip: 'Usuń parzenie',
+              tooltip: 'Delete Brewing',
               color: Colors.red.shade300,
               onPressed: _deleteBrewing,
             ),
