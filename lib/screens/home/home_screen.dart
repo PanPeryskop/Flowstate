@@ -18,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
+  late Future<List<Coffee>> _coffeesFuture;
 
   @override
   void initState() {
@@ -26,6 +27,17 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _showScrollToTop = _scrollController.offset > 300;
       });
+    });
+    _loadCoffees();
+  }
+
+  void _loadCoffees() {
+    _coffeesFuture = context.read<DatabaseService>().getAllCoffees();
+  }
+
+  Future<void> _refreshCoffees() async {
+    setState(() {
+      _loadCoffees();
     });
   }
 
@@ -106,122 +118,116 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               SliverPadding(
                 padding: const EdgeInsets.all(16.0),
-                sliver: Consumer<DatabaseService>(
-                  builder: (context, dbService, child) {
-                    return FutureBuilder<List<Coffee>>(
-                      future: dbService.getAllCoffees(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const SliverFillRemaining(
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        } else if (snapshot.hasError) {
-                          return SliverFillRemaining(
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.error_outline,
-                                    size: 60,
-                                    color: Colors.red.shade300,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'Error loading coffees',
-                                    style: Theme.of(context).textTheme.titleLarge,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '${snapshot.error}',
-                                    style: Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ],
+                sliver: FutureBuilder<List<Coffee>>(
+                  future: _coffeesFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SliverFillRemaining(
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    } else if (snapshot.hasError) {
+                      return SliverFillRemaining(
+                        child: Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 60,
+                                color: Colors.red.shade300,
                               ),
-                            ),
-                          );
-                        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                          return SliverFillRemaining(
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 32.0),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.coffee,
-                                      size: 80,
-                                      color: Colors.grey.shade300,
-                                    ),
-                                    const SizedBox(height: 24),
-                                    Text(
-                                      'No coffees yet',
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                            color: Colors.grey.shade700,
+                              const SizedBox(height: 16),
+                              Text(
+                                'Error loading coffees',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${snapshot.error}',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return SliverFillRemaining(
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.coffee,
+                                  size: 80,
+                                  color: Colors.grey.shade300,
+                                ),
+                                const SizedBox(height: 24),
+                                Text(
+                                  'No coffees yet',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                        color: Colors.grey.shade700,
+                                      ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Add your first coffee to start brewing!',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodyLarge,
+                                ),
+                                const SizedBox(height: 32),
+                                Align(
+                                  alignment: Alignment.center,
+                                  child: SizedBox(
+                                    width: 220,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const CoffeeFormScreen(),
                                           ),
+                                        ).then((_) => _refreshCoffees());
+                                      },
+                                      icon: const Icon(Icons.add),
+                                      label: const Text('Add Coffee'),
                                     ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'Add your first coffee to start brewing!',
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context).textTheme.bodyLarge,
-                                    ),
-                                    const SizedBox(height: 32),
-                                    Align(
-                                      alignment: Alignment.center,
-                                      child: SizedBox(
-                                        width: 220,
-                                        child: ElevatedButton.icon(
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => const CoffeeFormScreen(),
-                                              ),
-                                            );
-                                          },
-                                          icon: const Icon(Icons.add),
-                                          label: const Text('Add Coffee'),
-                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    } else {
+                      final coffees = snapshot.data!;
+                      return SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final coffee = coffees[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: CoffeeCard(
+                                coffee: coffee,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => CoffeeDetailScreen(
+                                        coffee: coffee,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ).then((_) => _refreshCoffees());
+                                },
                               ),
-                            ),
-                          );
-                        } else {
-                          final coffees = snapshot.data!;
-                          return SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final coffee = coffees[index];
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 16.0),
-                                  child: CoffeeCard(
-                                    coffee: coffee,
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => CoffeeDetailScreen(
-                                            coffee: coffee,
-                                          ),
-                                        ),
-                                      ).then((_) {
-                                        setState(() {});
-                                      });
-                                    },
-                                  ),
-                                );
-                              },
-                              childCount: coffees.length,
-                            ),
-                          );
-                        }
-                      },
-                    );
+                            );
+                          },
+                          childCount: coffees.length,
+                        ),
+                      );
+                    }
                   },
                 ),
               ),
@@ -250,9 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
             MaterialPageRoute(
               builder: (context) => const CoffeeFormScreen(),
             ),
-          ).then((_) {
-            setState(() {});
-          });
+          ).then((_) => _refreshCoffees());
         },
         label: const Text('Add Coffee'),
         icon: const Icon(Icons.add),

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/images/flowstate_logo.png" alt="Flowstate logo" width="160"/>
+<img src="https://raw.githubusercontent.com/PanPeryskop/Flowstate/refs/heads/main/assets/images/flowstate_logo.png" alt="Flowstate logo" width="160"/>
 
 <h1>Flowstate</h1>
 <p>Dial in your perfect pour-over</p>

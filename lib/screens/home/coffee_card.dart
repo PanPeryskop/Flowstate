@@ -5,7 +5,7 @@ import 'package:flowstate/models/coffee.dart';
 import 'package:flowstate/services/database_service.dart';
 import 'package:flowstate/theme/flowstate_theme.dart';
 
-class CoffeeCard extends StatelessWidget {
+class CoffeeCard extends StatefulWidget {
   final Coffee coffee;
   final VoidCallback onTap;
 
@@ -16,6 +16,23 @@ class CoffeeCard extends StatelessWidget {
   });
 
   @override
+  State<CoffeeCard> createState() => _CoffeeCardState();
+}
+
+class _CoffeeCardState extends State<CoffeeCard> {
+  late Future<Map<String, dynamic>> _statsFuture;
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+  
+  void _loadStats() {
+    _statsFuture = context.read<DatabaseService>().getCoffeeStats(widget.coffee.id);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -24,12 +41,12 @@ class CoffeeCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: InkWell(
-        onTap: onTap,
+        onTap: widget.onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (coffee.imageUrl != null)
-              _buildCoffeeImage(coffee.imageUrl!)
+            if (widget.coffee.imageUrl != null)
+              _buildCoffeeImage(widget.coffee.imageUrl!)
             else
               Container(
                 height: 120,
@@ -59,32 +76,32 @@ class CoffeeCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    coffee.name,
+                    widget.coffee.name,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                   const SizedBox(height: 4),
-                  if (coffee.roaster.isNotEmpty)
+                  if (widget.coffee.roaster.isNotEmpty)
                     Text(
-                      coffee.roaster,
+                      widget.coffee.roaster,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      if (coffee.origin.isNotEmpty)
+                      if (widget.coffee.origin.isNotEmpty)
                         Chip(
                           padding: EdgeInsets.zero,
                           backgroundColor: FlowstateTheme.accentColor.withOpacity(0.2),
                           label: Text(
-                            coffee.origin,
+                            widget.coffee.origin,
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
                       const Spacer(),
                       FutureBuilder<Map<String, dynamic>>(
-                        future: context.read<DatabaseService>().getCoffeeStats(coffee.id),
+                        future: _statsFuture,
                         builder: (context, snapshot) {
                           if (!snapshot.hasData) return const SizedBox.shrink();
                           

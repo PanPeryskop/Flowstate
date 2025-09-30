@@ -6,105 +6,114 @@ import 'package:flowstate/widgets/star_rating.dart';
 class BrewingCard extends StatelessWidget {
   final Brewing brewing;
   final VoidCallback onTap;
+  
+  final String formattedDate;
+  final String timeString;
+  final String temperatureString;
+  final String doseString;
 
-  const BrewingCard({
+  BrewingCard({
     super.key,
     required this.brewing,
     required this.onTap,
-  });
+  }) : formattedDate = DateFormat.yMMMd().format(brewing.brewDate),
+       timeString = '${brewing.totalBrewTime.inMinutes}:${(brewing.totalBrewTime.inSeconds % 60).toString().padLeft(2, '0')}',
+       temperatureString = '${brewing.waterTemperature.round()}°C',
+       doseString = '${brewing.coffeeDose}g';
 
   @override
   Widget build(BuildContext context) {
-    final minutes = brewing.totalBrewTime.inMinutes;
-    final seconds = brewing.totalBrewTime.inSeconds % 60;
-    final timeString = '$minutes:${seconds.toString().padLeft(2, '0')}';
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    DateFormat.yMMMd().format(brewing.brewDate),
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  StarRating(
-                    rating: brewing.rating,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
-                ],
-              ),
-              const Divider(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildInfoChip(
-                    context,
-                    Icons.coffee,
-                    '${brewing.coffeeDose}g',
-                  ),
-                  _buildInfoChip(
-                    context,
-                    Icons.grain, 
-                    brewing.grindSetting,
-                  ),
-                  _buildInfoChip(
-                    context,
-                    Icons.thermostat,
-                    '${brewing.waterTemperature.round()}°C',
-                  ),
-                  _buildInfoChip(
-                    context,
-                    Icons.timer,
-                    timeString,
-                  ),
-                ],
-              ),
-              if (brewing.notes.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Notes:',
-                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  brewing.notes,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+    return RepaintBoundary(
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context),
+                const Divider(height: 24),
+                _buildInfoRow(context),
+                if (brewing.notes.isNotEmpty)
+                  _buildNotes(context),
               ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoChip(BuildContext context, IconData icon, String text) {
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          formattedDate,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        StarRating(
+          rating: brewing.rating,
+          size: 20,
+          color: Theme.of(context).colorScheme.secondary,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+    final textStyle = theme.textTheme.bodyMedium;
+    
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildInfoChip(context, Icons.coffee, doseString, primaryColor, textStyle),
+        _buildInfoChip(context, Icons.grain, brewing.grindSetting, primaryColor, textStyle),
+        _buildInfoChip(context, Icons.thermostat, temperatureString, primaryColor, textStyle),
+        _buildInfoChip(context, Icons.timer, timeString, primaryColor, textStyle),
+      ],
+    );
+  }
+
+  Widget _buildNotes(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Text(
+          'Notes:',
+          style: theme.textTheme.bodySmall!.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          brewing.notes,
+          style: theme.textTheme.bodyMedium,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoChip(BuildContext context, IconData icon, String text, Color color, TextStyle? style) {
     return Column(
       children: [
         Icon(
           icon,
           size: 20,
-          color: Theme.of(context).colorScheme.primary,
+          color: color,
         ),
         const SizedBox(height: 4),
-        Text(
-          text,
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
+        Text(text, style: style),
       ],
     );
   }
