@@ -1,0 +1,57 @@
+name: flowstate
+description: "We make it look easy"
+publish_to: 'none' 
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  sqflite: ^2.3.3+1
+  path_provider: ^2.1.3
+  path: ^1.9.0
+
+  provider: ^6.1.2
+
+  uuid: ^4.4.0
+  intl: ^0.19.0
+  image_picker: ^1.1.2
+  google_fonts: ^6.3.2
+  sqflite_common_ffi: ^2.3.6
+  flutter_launcher_icons: ^0.14.4
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+    - assets/images/
+
+  fonts:
+    - family: Bauhaus93
+      fonts:
+        - asset: assets/fonts/Bauhaus93.ttf
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat-Regular.ttf
+        - asset: assets/fonts/Montserrat-Bold.ttf
+          weight: 700
+
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/flowstate_logo.png"
