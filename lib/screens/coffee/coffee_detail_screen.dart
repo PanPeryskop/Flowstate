@@ -111,7 +111,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
             flexibleSpace: FlexibleSpaceBar(
               title: Text(coffee.name),
               background: hasImage
-                  ? media!.startsWith('http')
+                  ? media.startsWith('http')
                       ? Image.network(media, fit: BoxFit.cover)
                       : Image.file(File(media), fit: BoxFit.cover)
                   : Container(

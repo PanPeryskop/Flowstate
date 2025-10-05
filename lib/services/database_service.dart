@@ -13,12 +13,12 @@ class DatabaseService extends ChangeNotifier {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
-  
+
   Database? _database;
-  
+
   final Map<String, Coffee> _coffeeCache = {};
   final Map<String, List<Brewing>> _brewingsCache = {};
-  
+
   static const String _dbName = "flowstate.db";
   static const int _dbVersion = 1;
 
@@ -28,23 +28,23 @@ class DatabaseService extends ChangeNotifier {
 
   Future<void> initialize() async {
     if (_database != null) return;
-    
+
     try {
       if (Platform.isWindows || Platform.isLinux) {
         sqfliteFfiInit();
         databaseFactory = databaseFactoryFfi;
       }
-      
+
       final documentsDirectory = await getApplicationDocumentsDirectory();
       final path = join(documentsDirectory.path, _dbName);
-      
+
       _database = await openDatabase(
         path,
         version: _dbVersion,
         onCreate: _createDb,
         onUpgrade: _upgradeDb,
       );
-      
+
       debugPrint('Database initialized at $path');
     } catch (e) {
       debugPrint('Error initializing database: $e');
@@ -66,7 +66,7 @@ class DatabaseService extends ChangeNotifier {
           imageUrl TEXT
         )
       ''');
-      
+
       await txn.execute('''
         CREATE TABLE $_brewingTable (
           id TEXT PRIMARY KEY,
@@ -83,7 +83,7 @@ class DatabaseService extends ChangeNotifier {
           FOREIGN KEY (coffeeId) REFERENCES $_coffeeTable (id) ON DELETE CASCADE
         )
       ''');
-      
+
       await txn.execute('''
         CREATE TABLE $_stepTable (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,14 +94,13 @@ class DatabaseService extends ChangeNotifier {
           FOREIGN KEY (brewingId) REFERENCES $_brewingTable (id) ON DELETE CASCADE
         )
       ''');
-      
+
       debugPrint('Database tables created');
     });
   }
 
   Future<void> _upgradeDb(Database db, int oldVersion, int newVersion) async {
     debugPrint('Upgrading database from $oldVersion to $newVersion');
-    
   }
 
   Future<void> close() async {
@@ -130,7 +129,6 @@ class DatabaseService extends ChangeNotifier {
     }
   }
 
-
   Future<List<Coffee>> getAllCoffees() async {
     try {
       final db = _database!;
@@ -138,25 +136,25 @@ class DatabaseService extends ChangeNotifier {
         _coffeeTable,
         orderBy: 'createdAt DESC',
       );
-      
+
       final coffees = List.generate(maps.length, (i) {
         final coffee = Coffee.fromMap(maps[i]);
         _coffeeCache[coffee.id] = coffee;
         return coffee;
       });
-      
+
       return coffees;
     } catch (e) {
       debugPrint('Error getting all coffees: $e');
       rethrow;
     }
   }
-  
+
   Future<Coffee> getCoffeeById(String id) async {
     if (_coffeeCache.containsKey(id)) {
       return _coffeeCache[id]!;
     }
-    
+
     try {
       final db = _database!;
       final List<Map<String, dynamic>> maps = await db.query(
@@ -165,11 +163,11 @@ class DatabaseService extends ChangeNotifier {
         whereArgs: [id],
         limit: 1,
       );
-      
+
       if (maps.isEmpty) {
         throw Exception('Coffee with ID $id not found');
       }
-      
+
       final coffee = Coffee.fromMap(maps.first);
       _coffeeCache[id] = coffee;
       return coffee;
@@ -178,7 +176,7 @@ class DatabaseService extends ChangeNotifier {
       rethrow;
     }
   }
-  
+
   Future<Coffee> addCoffee(Coffee coffee) async {
     try {
       final db = _database!;
@@ -193,9 +191,9 @@ class DatabaseService extends ChangeNotifier {
         createdAt: DateTime.now(),
         imageUrl: coffee.imageUrl,
       );
-      
+
       await db.insert(_coffeeTable, newCoffee.toMap());
-      
+
       _coffeeCache[id] = newCoffee;
       notifyListeners();
       return newCoffee;
@@ -204,7 +202,7 @@ class DatabaseService extends ChangeNotifier {
       rethrow;
     }
   }
-  
+
   Future<void> updateCoffee(Coffee coffee) async {
     try {
       final db = _database!;
@@ -214,32 +212,28 @@ class DatabaseService extends ChangeNotifier {
         where: 'id = ?',
         whereArgs: [coffee.id],
       );
-      
+
       _coffeeCache[coffee.id] = coffee;
-      
+
       _brewingsCache.remove(coffee.id);
-      
+
       notifyListeners();
     } catch (e) {
       debugPrint('Error updating coffee ${coffee.id}: $e');
       rethrow;
     }
   }
-  
+
   Future<void> deleteCoffee(String id) async {
     try {
       final db = _database!;
       await db.transaction((txn) async {
-        await txn.delete(
-          _coffeeTable,
-          where: 'id = ?',
-          whereArgs: [id],
-        );
+        await txn.delete(_coffeeTable, where: 'id = ?', whereArgs: [id]);
       });
-      
+
       _coffeeCache.remove(id);
       _brewingsCache.remove(id);
-      
+
       notifyListeners();
     } catch (e) {
       debugPrint('Error deleting coffee $id: $e');
@@ -247,15 +241,14 @@ class DatabaseService extends ChangeNotifier {
     }
   }
 
-
   Future<List<Brewing>> getBrewingsForCoffee(String coffeeId) async {
     if (_brewingsCache.containsKey(coffeeId)) {
       return _brewingsCache[coffeeId]!;
     }
-    
+
     try {
       final db = _database!;
-      
+
       return await db.transaction((txn) async {
         final List<Map<String, dynamic>> brewingMaps = await txn.query(
           _brewingTable,
@@ -263,9 +256,9 @@ class DatabaseService extends ChangeNotifier {
           whereArgs: [coffeeId],
           orderBy: 'brewDate DESC',
         );
-        
+
         final brewings = <Brewing>[];
-        
+
         for (var brewingMap in brewingMaps) {
           final brewingId = brewingMap['id'] as String;
           final List<Map<String, dynamic>> stepMaps = await txn.query(
@@ -274,23 +267,27 @@ class DatabaseService extends ChangeNotifier {
             whereArgs: [brewingId],
             orderBy: 'stepNumber ASC',
           );
-          
-          final steps = stepMaps.map((stepMap) => BrewingStep(
-            stepNumber: stepMap['stepNumber'] as int,
-            waterAmount: stepMap['waterAmount'] as double,
-            time: stepMap['time'] as int?,
-          )).toList();
-          
+
+          final steps = stepMaps
+              .map(
+                (stepMap) => BrewingStep(
+                  stepNumber: stepMap['stepNumber'] as int,
+                  waterAmount: stepMap['waterAmount'] as double,
+                  time: stepMap['time'] as int?,
+                ),
+              )
+              .toList();
+
           final brewing = Brewing.fromMap({
             ...brewingMap,
             'steps': steps.map((step) => step.toMap()).toList(),
           });
-          
+
           brewings.add(brewing);
         }
-        
+
         _brewingsCache[coffeeId] = brewings;
-        
+
         return brewings;
       });
     } catch (e) {
@@ -298,11 +295,11 @@ class DatabaseService extends ChangeNotifier {
       rethrow;
     }
   }
-  
+
   Future<Brewing> addBrewing(Brewing brewing) async {
     try {
       final db = _database!;
-      
+
       final id = const Uuid().v4();
       final newBrewing = Brewing(
         id: id,
@@ -318,7 +315,7 @@ class DatabaseService extends ChangeNotifier {
         notes: brewing.notes,
         brewDate: brewing.brewDate,
       );
-      
+
       await db.transaction((txn) async {
         await txn.insert(_brewingTable, {
           'id': newBrewing.id,
@@ -333,7 +330,7 @@ class DatabaseService extends ChangeNotifier {
           'notes': newBrewing.notes,
           'brewDate': newBrewing.brewDate.millisecondsSinceEpoch,
         });
-        
+
         for (var step in newBrewing.steps) {
           await txn.insert(_stepTable, {
             'brewingId': newBrewing.id,
@@ -343,9 +340,9 @@ class DatabaseService extends ChangeNotifier {
           });
         }
       });
-      
+
       _brewingsCache.remove(brewing.coffeeId);
-      
+
       notifyListeners();
       return newBrewing;
     } catch (e) {
@@ -353,11 +350,11 @@ class DatabaseService extends ChangeNotifier {
       rethrow;
     }
   }
-  
+
   Future<void> updateBrewing(Brewing brewing) async {
     try {
       final db = _database!;
-      
+
       await db.transaction((txn) async {
         await txn.update(
           _brewingTable,
@@ -375,13 +372,13 @@ class DatabaseService extends ChangeNotifier {
           where: 'id = ?',
           whereArgs: [brewing.id],
         );
-        
+
         await txn.delete(
           _stepTable,
           where: 'brewingId = ?',
           whereArgs: [brewing.id],
         );
-        
+
         for (var step in brewing.steps) {
           await txn.insert(_stepTable, {
             'brewingId': brewing.id,
@@ -391,65 +388,70 @@ class DatabaseService extends ChangeNotifier {
           });
         }
       });
-      
+
       _brewingsCache.remove(brewing.coffeeId);
-      
+
       notifyListeners();
     } catch (e) {
       debugPrint('Error updating brewing ${brewing.id}: $e');
       rethrow;
     }
   }
-  
+
   Future<void> deleteBrewing(String id, String coffeeId) async {
     try {
       final db = _database!;
-      
-      await db.delete(
-        _brewingTable,
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-      
+
+      await db.delete(_brewingTable, where: 'id = ?', whereArgs: [id]);
+
       _brewingsCache.remove(coffeeId);
-      
+
       notifyListeners();
     } catch (e) {
       debugPrint('Error deleting brewing $id: $e');
       rethrow;
     }
   }
-  
+
   Future<Map<String, dynamic>> getCoffeeStats(String coffeeId) async {
     try {
       final db = _database!;
-      
-      final results = await db.rawQuery('''
+
+      final results = await db.rawQuery(
+        '''
         SELECT 
           COUNT(*) as brewCount,
-          AVG(rating) as avgRating,
+          MAX(rating) as maxRating,
           MIN(brewDate) as firstBrew,
           MAX(brewDate) as lastBrew
         FROM $_brewingTable
         WHERE coffeeId = ?
-      ''', [coffeeId]);
-      
+      ''',
+        [coffeeId],
+      );
+
       if (results.isEmpty) {
         return {
           'brewCount': 0,
-          'avgRating': 0.0,
+          'maxRating': 0,
           'firstBrew': null,
           'lastBrew': null,
         };
       }
-      
+
       return {
         'brewCount': results.first['brewCount'] as int,
-        'avgRating': (results.first['avgRating'] as num?)?.toDouble() ?? 0.0,
-        'firstBrew': results.first['firstBrew'] != null ? 
-            DateTime.fromMillisecondsSinceEpoch(results.first['firstBrew'] as int) : null,
-        'lastBrew': results.first['lastBrew'] != null ?
-            DateTime.fromMillisecondsSinceEpoch(results.first['lastBrew'] as int) : null,
+        'maxRating': (results.first['maxRating'] as int?) ?? 0,
+        'firstBrew': results.first['firstBrew'] != null
+            ? DateTime.fromMillisecondsSinceEpoch(
+                results.first['firstBrew'] as int,
+              )
+            : null,
+        'lastBrew': results.first['lastBrew'] != null
+            ? DateTime.fromMillisecondsSinceEpoch(
+                results.first['lastBrew'] as int,
+              )
+            : null,
       };
     } catch (e) {
       debugPrint('Error getting stats for coffee $coffeeId: $e');

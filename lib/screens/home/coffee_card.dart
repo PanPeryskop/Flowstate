@@ -9,11 +9,7 @@ class CoffeeCard extends StatefulWidget {
   final Coffee coffee;
   final VoidCallback onTap;
 
-  const CoffeeCard({
-    super.key,
-    required this.coffee,
-    required this.onTap,
-  });
+  const CoffeeCard({super.key, required this.coffee, required this.onTap});
 
   @override
   State<CoffeeCard> createState() => _CoffeeCardState();
@@ -21,15 +17,17 @@ class CoffeeCard extends StatefulWidget {
 
 class _CoffeeCardState extends State<CoffeeCard> {
   late Future<Map<String, dynamic>> _statsFuture;
-  
+
   @override
   void initState() {
     super.initState();
     _loadStats();
   }
-  
+
   void _loadStats() {
-    _statsFuture = context.read<DatabaseService>().getCoffeeStats(widget.coffee.id);
+    _statsFuture = context.read<DatabaseService>().getCoffeeStats(
+      widget.coffee.id,
+    );
   }
 
   @override
@@ -37,9 +35,7 @@ class _CoffeeCardState extends State<CoffeeCard> {
     return Card(
       clipBehavior: Clip.antiAlias,
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: widget.onTap,
         child: Column(
@@ -78,8 +74,8 @@ class _CoffeeCardState extends State<CoffeeCard> {
                   Text(
                     widget.coffee.name,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   if (widget.coffee.roaster.isNotEmpty)
@@ -93,7 +89,8 @@ class _CoffeeCardState extends State<CoffeeCard> {
                       if (widget.coffee.origin.isNotEmpty)
                         Chip(
                           padding: EdgeInsets.zero,
-                          backgroundColor: FlowstateTheme.accentColor.withOpacity(0.2),
+                          backgroundColor: FlowstateTheme.accentColor
+                              .withOpacity(0.2),
                           label: Text(
                             widget.coffee.origin,
                             style: Theme.of(context).textTheme.bodySmall,
@@ -104,11 +101,11 @@ class _CoffeeCardState extends State<CoffeeCard> {
                         future: _statsFuture,
                         builder: (context, snapshot) {
                           if (!snapshot.hasData) return const SizedBox.shrink();
-                          
+
                           final stats = snapshot.data!;
                           final brewCount = stats['brewCount'] as int;
-                          final avgRating = stats['avgRating'] as double;
-                          
+                          final maxRating = stats['maxRating'] as int;
+
                           return Row(
                             children: [
                               Text(
@@ -124,7 +121,7 @@ class _CoffeeCardState extends State<CoffeeCard> {
                                 ),
                                 const SizedBox(width: 2),
                                 Text(
-                                  avgRating.toStringAsFixed(1),
+                                  '$maxRating',
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ],
