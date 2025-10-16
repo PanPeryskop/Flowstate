@@ -73,8 +73,18 @@ class _CoffeeCardState extends State<CoffeeCard> {
                 children: [
                   Text(
                     widget.coffee.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      shadows: const [
+                        Shadow(
+                          color: Colors.black26,
+                          offset: Offset(0, 1),
+                          blurRadius: 3,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 4),

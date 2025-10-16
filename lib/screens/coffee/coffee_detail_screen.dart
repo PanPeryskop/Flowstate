@@ -14,16 +14,14 @@ import 'coffee_analysis_screen.dart';
 class CoffeeDetailScreen extends StatefulWidget {
   final Coffee coffee;
 
-  const CoffeeDetailScreen({
-    super.key,
-    required this.coffee,
-  });
+  const CoffeeDetailScreen({super.key, required this.coffee});
 
   @override
   State<CoffeeDetailScreen> createState() => _CoffeeDetailScreenState();
 }
 
-class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticKeepAliveClientMixin<CoffeeDetailScreen> {
+class _CoffeeDetailScreenState extends State<CoffeeDetailScreen>
+    with AutomaticKeepAliveClientMixin<CoffeeDetailScreen> {
   final DateFormat _dateFormatter = DateFormat('MMMM d, y');
   List<Brewing> _brewings = [];
   bool _isLoading = true;
@@ -45,7 +43,9 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
       _error = null;
     });
     try {
-      final brewings = await context.read<DatabaseService>().getBrewingsForCoffee(widget.coffee.id);
+      final brewings = await context
+          .read<DatabaseService>()
+          .getBrewingsForCoffee(widget.coffee.id);
       if (!mounted) return;
       setState(() {
         _brewings = _applySort(brewings);
@@ -82,10 +82,8 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BrewingFormScreen(
-          coffee: widget.coffee,
-          brewing: brewing,
-        ),
+        builder: (context) =>
+            BrewingFormScreen(coffee: widget.coffee, brewing: brewing),
       ),
     );
     if (!mounted) return;
@@ -109,11 +107,30 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
             expandedHeight: hasImage ? 220 : 180,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(coffee.name),
+              title: Text(
+                coffee.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: hasImage
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.primary,
+                  shadows: hasImage
+                      ? const [
+                          Shadow(
+                            color: Colors.black45,
+                            offset: Offset(0, 2),
+                            blurRadius: 4,
+                          ),
+                        ]
+                      : null,
+                ),
+              ),
               background: hasImage
-                  ? media.startsWith('http')
-                      ? Image.network(media, fit: BoxFit.cover)
-                      : Image.file(File(media), fit: BoxFit.cover)
+                  ? media!.startsWith('http')
+                        ? Image.network(media, fit: BoxFit.cover)
+                        : Image.file(File(media), fit: BoxFit.cover)
                   : Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -134,9 +151,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => CoffeeFormScreen(
-                        coffee: coffee,
-                      ),
+                      builder: (context) => CoffeeFormScreen(coffee: coffee),
                     ),
                   );
                   if (!mounted) return;
@@ -150,9 +165,8 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => CoffeeAnalysisScreen(
-                        coffee: coffee,
-                      ),
+                      builder: (context) =>
+                          CoffeeAnalysisScreen(coffee: coffee),
                     ),
                   );
                 },
@@ -164,7 +178,9 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
                       context: context,
                       builder: (context) => AlertDialog(
                         title: const Text('Delete Coffee'),
-                        content: const Text('Are you sure you want to delete this coffee? All brewing records will also be deleted.'),
+                        content: const Text(
+                          'Are you sure you want to delete this coffee? All brewing records will also be deleted.',
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
@@ -178,16 +194,15 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
                       ),
                     );
                     if (confirm ?? false) {
-                      await context.read<DatabaseService>().deleteCoffee(coffee.id);
+                      await context.read<DatabaseService>().deleteCoffee(
+                        coffee.id,
+                      );
                       if (mounted) Navigator.pop(context);
                     }
                   }
                 },
                 itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete'),
-                  ),
+                  PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
               ),
             ],
@@ -201,11 +216,27 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (coffee.roaster.isNotEmpty) _buildInfoRow(context, 'Roaster', coffee.roaster),
-                      if (coffee.origin.isNotEmpty) _buildInfoRow(context, 'Origin', coffee.origin),
-                      if (coffee.flavorProfile.isNotEmpty) _buildInfoRow(context, 'Flavor Profile', coffee.flavorProfile),
-                      if (coffee.roastDate != null) _buildInfoRow(context, 'Roast Date', _dateFormatter.format(coffee.roastDate!)),
-                      _buildInfoRow(context, 'Added', _dateFormatter.format(coffee.createdAt)),
+                      if (coffee.roaster.isNotEmpty)
+                        _buildInfoRow(context, 'Roaster', coffee.roaster),
+                      if (coffee.origin.isNotEmpty)
+                        _buildInfoRow(context, 'Origin', coffee.origin),
+                      if (coffee.flavorProfile.isNotEmpty)
+                        _buildInfoRow(
+                          context,
+                          'Flavor Profile',
+                          coffee.flavorProfile,
+                        ),
+                      if (coffee.roastDate != null)
+                        _buildInfoRow(
+                          context,
+                          'Roast Date',
+                          _dateFormatter.format(coffee.roastDate!),
+                        ),
+                      _buildInfoRow(
+                        context,
+                        'Added',
+                        _dateFormatter.format(coffee.createdAt),
+                      ),
                     ],
                   ),
                 ),
@@ -218,12 +249,13 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Brewing History',
-                    style: theme.textTheme.titleLarge,
-                  ),
+                  Text('Brewing History', style: theme.textTheme.titleLarge),
                   IconButton(
-                    icon: Icon(_sortByDateDesc ? Icons.arrow_downward : Icons.arrow_upward),
+                    icon: Icon(
+                      _sortByDateDesc
+                          ? Icons.arrow_downward
+                          : Icons.arrow_upward,
+                    ),
                     onPressed: _toggleSort,
                     tooltip: _sortByDateDesc ? 'Newest first' : 'Oldest first',
                   ),
@@ -246,18 +278,13 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
   Widget _buildBrewingsSliver(ThemeData theme) {
     if (_isLoading) {
       return const SliverFillRemaining(
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
+        child: Center(child: CircularProgressIndicator()),
       );
     }
     if (_error != null) {
       return SliverFillRemaining(
         child: Center(
-          child: Text(
-            'Error: $_error',
-            style: theme.textTheme.bodyLarge,
-          ),
+          child: Text('Error: $_error', style: theme.textTheme.bodyLarge),
         ),
       );
     }
@@ -275,19 +302,16 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
     return SliverPadding(
       padding: const EdgeInsets.all(16),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final brewing = _brewings[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: BrewingCard(
-                brewing: brewing,
-                onTap: () => _openBrewingForm(brewing: brewing),
-              ),
-            );
-          },
-          childCount: _brewings.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final brewing = _brewings[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: BrewingCard(
+              brewing: brewing,
+              onTap: () => _openBrewingForm(brewing: brewing),
+            ),
+          );
+        }, childCount: _brewings.length),
       ),
     );
   }
@@ -309,9 +333,7 @@ class _CoffeeDetailScreenState extends State<CoffeeDetailScreen> with AutomaticK
               ),
             ),
           ),
-          Expanded(
-            child: Text(value),
-          ),
+          Expanded(child: Text(value)),
         ],
       ),
     );
