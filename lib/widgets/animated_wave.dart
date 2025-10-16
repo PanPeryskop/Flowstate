@@ -1,9 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 class AnimatedWave extends StatefulWidget {
   final double height;
-  final double speed;
+  final double speed; // wpływa na czas trwania pętli (im większa, tym szybciej)
   final double offset;
   final double opacity;
   final List<Color>? gradientColors;
@@ -22,45 +23,114 @@ class AnimatedWave extends StatefulWidget {
 }
 
 class _AnimatedWaveState extends State<AnimatedWave> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final CurvedAnimation _curve;
+  late final Ticker _ticker;
+
+  double _loopT = 0.0;           // [0, 1) – czas w pętli
+  double _globalTime = 0.0;      // czas ciągły (sekundy)
+  Duration? _lastTick;
+
+  // Interakcje
+  double? _pointerXNorm;         // [0..1]
+  double _pointerStrength = 0.0; // siła wpływu kursora/drag
+  final List<_Ripple> _ripples = [];
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 12),
-      vsync: this,
-    )..repeat();
-    _curve = CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine);
+    _ticker = createTicker(_onTick)..start();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _ticker.dispose();
     super.dispose();
+  }
+
+  void _onTick(Duration elapsed) {
+    final last = _lastTick;
+    _lastTick = elapsed;
+    if (last == null) return;
+
+    final dt = (elapsed - last).inMicroseconds / 1e6; // sekundy
+    _globalTime += dt;
+
+    // Czas pętli zależny od speed (klampujemy dla stabilności).
+    final speed = widget.speed.clamp(0.3, 6.0);
+    final loopDurationSec = (12.0 / speed).clamp(6.0, 18.0); // im większa speed, tym szybszy loop
+    _loopT = (_loopT + dt / loopDurationSec) % 1.0;
+
+    // Powolne „wygaszanie” wpływu wskaźnika, gdy nie ruszamy.
+    // Ok. 60 FPS -> tłumienie ~0.92/frame
+    final decay = math.pow(0.92, dt * 60.0) as double;
+    _pointerStrength *= decay;
+
+    // Życie ripple’i
+    _ripples.removeWhere((r) => (_globalTime - r.startTime) > r.life);
+
+    if (mounted) setState(() {});
+  }
+
+  void _addRipple(double xNorm) {
+    _ripples.add(
+      _Ripple(
+        xNorm: xNorm,
+        startTime: _globalTime,
+        life: 4.0,           // czas życia (s)
+        speed: 0.22,         // prędkość przemieszczania się po osi X (norm)
+        wavelength: 0.22,    // długość fali ripple (norm szerokości)
+        decay: 0.9,          // tłumienie w czasie
+        amplitude: 1.0,      // względna siła
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _curve,
-      builder: (context, child) {
-        return SizedBox(
-          height: widget.height,
-          width: double.infinity,
-          child: CustomPaint(
-            painter: _OceanWavePainter(
-              progress: _curve.value,
-              speed: widget.speed,
-              offset: widget.offset,
-              opacity: widget.opacity,
-              gradientColors: widget.gradientColors ??
-                  [
-                    Colors.white.withOpacity(widget.opacity * 0.9),
-                    Colors.white.withOpacity(widget.opacity * 0.6),
-                    Colors.white.withOpacity(widget.opacity * 0.3),
-                  ],
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        final width = constraints.maxWidth;
+
+        return MouseRegion(
+          onHover: (e) {
+            _pointerXNorm = (e.localPosition.dx / width).clamp(0.0, 1.0);
+            _pointerStrength = (_pointerStrength * 0.7) + 0.3; // łagodny boost
+          },
+          onExit: (_) => _pointerXNorm = null,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTapDown: (d) {
+              final x = (d.localPosition.dx / width).clamp(0.0, 1.0);
+              _addRipple(x);
+            },
+            onPanUpdate: (d) {
+              _pointerXNorm = (d.localPosition.dx / width).clamp(0.0, 1.0);
+              final boost = (d.delta.distance * 0.03).clamp(0.0, 1.0);
+              _pointerStrength = (_pointerStrength * 0.6) + 0.4 * boost;
+            },
+            onPanEnd: (_) => _pointerStrength *= 0.8,
+            child: RepaintBoundary(
+              child: SizedBox(
+                height: widget.height,
+                width: double.infinity,
+                child: CustomPaint(
+                  painter: _OceanWavePainter(
+                    t: _loopT,
+                    globalTime: _globalTime,
+                    speed: widget.speed,
+                    offset: widget.offset,
+                    opacity: widget.opacity,
+                    gradientColors: widget.gradientColors ??
+                        [
+                          Colors.white.withOpacity(widget.opacity * 0.9),
+                          Colors.white.withOpacity(widget.opacity * 0.6),
+                          Colors.white.withOpacity(widget.opacity * 0.3),
+                        ],
+                    pointerXNorm: _pointerXNorm,
+                    pointerStrength: _pointerStrength,
+                    ripples: _ripples,
+                  ),
+                ),
+              ),
             ),
           ),
         );
@@ -69,43 +139,130 @@ class _AnimatedWaveState extends State<AnimatedWave> with SingleTickerProviderSt
   }
 }
 
+class _Ripple {
+  final double xNorm;
+  final double startTime;
+  final double life;
+  final double speed;
+  final double wavelength;
+  final double decay; // tłumienie eksponencjalne
+  final double amplitude;
+
+  _Ripple({
+    required this.xNorm,
+    required this.startTime,
+    required this.life,
+    required this.speed,
+    required this.wavelength,
+    required this.decay,
+    required this.amplitude,
+  });
+}
+
 class _OceanWavePainter extends CustomPainter {
-  final double progress;
+  final double t; // [0..1) — czas pętli (bezwzględnie zapętlony)
+  final double globalTime; // ciągły czas (s) — do zjawisk reaktywnych
   final double speed;
   final double offset;
   final double opacity;
   final List<Color> gradientColors;
 
+  final double? pointerXNorm;    // [0..1]
+  final double pointerStrength;  // 0..1
+  final List<_Ripple> ripples;
+
   _OceanWavePainter({
-    required this.progress,
+    required this.t,
+    required this.globalTime,
     required this.speed,
     required this.offset,
     required this.opacity,
     required this.gradientColors,
+    required this.pointerXNorm,
+    required this.pointerStrength,
+    required this.ripples,
   });
+
+  // Gaussian helper
+  double _gauss(double x, double sigma) => math.exp(-(x * x) / (2.0 * sigma * sigma));
 
   @override
   void paint(Canvas canvas, Size size) {
-    final baseHeight = size.height * 0.65;
-    final amplitude = size.height * 0.35;
-    final resolution = 160;
-    final path = _buildWavePath(
-      size: size,
-      baseHeight: baseHeight,
-      amplitude: amplitude,
-      phase: progress * speed * math.pi * 2 + offset,
-      resolution: resolution,
-      turbulence: 0.5,
-    );
-    final highlightPath = _buildWavePath(
-      size: size,
-      baseHeight: baseHeight - amplitude * 0.06,
-      amplitude: amplitude * 0.7,
-      phase: progress * speed * math.pi * 2 + offset * 1.1 + math.pi / 3,
-      resolution: resolution,
-      turbulence: 0.8,
-    );
+    // Adaptacyjna rozdzielczość (smooth + oszczędnie).
+    final int resolution = (size.width / 8).clamp(100, 280).toInt();
 
+    // Geometria fali bazowa
+    final double baseHeight = size.height * 0.64;
+    final double amplitude = size.height * 0.36;
+
+    // Częściowo „oddychająca” amplituda (zapętlone w t)
+    final double breathe = 1.0 + 0.08 * math.sin(2 * math.pi * t);
+
+    // Pętle czasowe bezszwowe — fazy muszą być całkowitoliczbowe w t.
+    // Dzięki integer cycles shape(t=0) == shape(t=1).
+    const int cyclesMain = 2; // ile pełnych przejść na pętlę
+    final double phase1 = 2 * math.pi * cyclesMain * t + offset;
+    final double phase2 = 2 * math.pi * (cyclesMain * 2) * t + offset * 0.7 + math.pi / 3;
+    final double phase3 = 2 * math.pi * (cyclesMain * 3) * t + offset * 1.1 + math.pi / 5;
+
+    // Lokalny wpływ kursora/drag (łagodna krzywa Gaussa)
+    final double? cursorX = pointerXNorm;
+    final double cursorSigma = 0.12;
+
+    // Budujemy punkty grzbietu
+    final List<Offset> points = <Offset>[];
+    final List<Offset> highlightPoints = <Offset>[];
+
+    for (int i = 0; i <= resolution; i++) {
+      final double p = i / resolution;
+      final double x = p * size.width;
+
+      // Sumy fal przestrzennych + fazy czasowe (zapętlone)
+      final double w1 = math.sin((p * 2 * math.pi * 1.2) + phase1);
+      final double w2 = math.sin((p * 2 * math.pi * 0.7) + phase2);
+      final double w3 = math.cos((p * 2 * math.pi * 0.4) + phase3);
+
+      // Lokalny boost amplitudy od wskaźnika (miękko, tylko tam gdzie blisko)
+      double localBoost = 1.0;
+      if (cursorX != null && pointerStrength > 0.001) {
+        final dx = (p - cursorX);
+        final influence = _gauss(dx, cursorSigma) * pointerStrength; // 0..1
+        localBoost += 0.28 * influence; // subtelny, surferski vibe
+      }
+
+      // Reaktywne ripples/swell (tap) – wędrujące i wygaszające się
+      double rippleDisp = 0.0;
+      for (final r in ripples) {
+        final dt = (globalTime - r.startTime).clamp(0.0, r.life);
+        final cx = r.xNorm + r.speed * dt; // centrum ripple przesuwa się w prawo
+        if (cx < -0.2 || cx > 1.2) continue; // poza ekranem — pomijamy
+
+        final u = p - cx;
+        final envelope = _gauss(u, 0.12) * math.pow(r.decay, dt);
+        // Faza ripple — też płynna w czasie globalnym (niezależna od pętli)
+        final ripplePhase = 2 * math.pi * (u / r.wavelength - dt / r.wavelength);
+        rippleDisp += (amplitude * 0.35) * r.amplitude * envelope * math.sin(ripplePhase);
+      }
+
+      final double yBase = baseHeight +
+          amplitude * breathe * localBoost * (w1 * 0.55 + w2 * 0.30 + w3 * 0.15) +
+          rippleDisp;
+
+      points.add(Offset(x, yBase));
+
+      // Highlight „grzbietu” nieco przesunięty do góry, mniejsza amplituda
+      final double yHi = (baseHeight - amplitude * 0.06) +
+          amplitude * 0.72 * (w1 * 0.55 + w2 * 0.30 + w3 * 0.15) +
+          rippleDisp * 0.7;
+
+      highlightPoints.add(Offset(x, yHi));
+    }
+
+    // Path bazowy (Catmull-Rom -> cubic)
+    final Path fillPath = _catmullRomToCubicPath(points, closeToBottom: true, size: size);
+    final Path crestPath = _catmullRomToCubicPath(highlightPoints, closeToBottom: false, size: size);
+
+    // Gradient (twoje kolory)
     final rect = Offset.zero & size;
     final gradient = LinearGradient(
       begin: Alignment.topCenter,
@@ -118,6 +275,7 @@ class _OceanWavePainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
+    // Subtelny shimmer grzbietu (minimalistyczny)
     final shimmerPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
@@ -131,40 +289,36 @@ class _OceanWavePainter extends CustomPainter {
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
       ..isAntiAlias = true;
 
-    canvas.drawPath(path, basePaint);
-    canvas.drawPath(highlightPath, shimmerPaint);
+    // Cienka kreska „pianki” na grzbiecie
+    final foamPaint = Paint()
+      ..color = Colors.white.withOpacity(opacity * 0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..isAntiAlias = true;
+
+    canvas.drawPath(fillPath, basePaint);
+    canvas.drawPath(_clipToTop(fillPath, crestPath), shimmerPaint);
+    canvas.drawPath(crestPath, foamPaint);
   }
 
-  Path _buildWavePath({
-    required Size size,
-    required double baseHeight,
-    required double amplitude,
-    required double phase,
-    required int resolution,
-    required double turbulence,
-  }) {
-    final points = <Offset>[];
-    for (int i = 0; i <= resolution; i++) {
-      final progress = i / resolution;
-      final x = progress * size.width;
-      final wave1 = math.sin((progress * math.pi * 2 * 1.2) + phase);
-      final wave2 = math.sin((progress * math.pi * 2 * 0.7) + phase * 0.6);
-      final wave3 = math.cos((progress * math.pi * 2 * 0.4) + phase * 0.3);
-      final y = baseHeight +
-          wave1 * amplitude * 0.55 +
-          wave2 * amplitude * 0.3 +
-          wave3 * amplitude * 0.15 * turbulence;
-      points.add(Offset(x, y));
+  // Konwersja Catmull-Rom do cubic Bezier + opcjonalne zamknięcie do dołu
+  Path _catmullRomToCubicPath(List<Offset> pts, {required bool closeToBottom, required Size size}) {
+    final path = Path();
+    if (pts.isEmpty) return path;
+
+    // Start od dołu/od początku
+    if (closeToBottom) {
+      path.moveTo(0, size.height);
+      path.lineTo(pts.first.dx, pts.first.dy);
+    } else {
+      path.moveTo(pts.first.dx, pts.first.dy);
     }
 
-    final path = Path()..moveTo(0, size.height);
-    path.lineTo(points.first.dx, points.first.dy);
-
-    for (int i = 0; i < points.length - 1; i++) {
-      final p0 = i == 0 ? points[i] : points[i - 1];
-      final p1 = points[i];
-      final p2 = points[i + 1];
-      final p3 = i + 2 < points.length ? points[i + 2] : points[i + 1];
+    for (int i = 0; i < pts.length - 1; i++) {
+      final p0 = i == 0 ? pts[i] : pts[i - 1];
+      final p1 = pts[i];
+      final p2 = pts[i + 1];
+      final p3 = i + 2 < pts.length ? pts[i + 2] : pts[i + 1];
 
       final control1 = Offset(
         p1.dx + (p2.dx - p0.dx) / 6,
@@ -178,17 +332,29 @@ class _OceanWavePainter extends CustomPainter {
       path.cubicTo(control1.dx, control1.dy, control2.dx, control2.dy, p2.dx, p2.dy);
     }
 
-    path.lineTo(size.width, size.height);
-    path.close();
+    if (closeToBottom) {
+      path.lineTo(size.width, size.height);
+      path.close();
+    }
     return path;
   }
 
+  // Wytnij shimmer tylko do górnej części fali (żeby nie świecił „pod wodą”)
+  Path _clipToTop(Path base, Path crest) {
+    final Path result = Path()..addPath(crest, Offset.zero);
+    return Path.combine(PathOperation.intersect, result, base);
+  }
+
   @override
-  bool shouldRepaint(covariant _OceanWavePainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.opacity != opacity ||
-        oldDelegate.speed != speed ||
-        oldDelegate.offset != offset ||
-        oldDelegate.gradientColors != gradientColors;
+  bool shouldRepaint(covariant _OceanWavePainter old) {
+    return old.t != t ||
+        old.globalTime != globalTime ||
+        old.opacity != opacity ||
+        old.speed != speed ||
+        old.offset != offset ||
+        old.pointerXNorm != pointerXNorm ||
+        old.pointerStrength != pointerStrength ||
+        old.gradientColors != gradientColors ||
+        old.ripples.length != ripples.length;
   }
 }
